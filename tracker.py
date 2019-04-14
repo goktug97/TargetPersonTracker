@@ -6,6 +6,7 @@ import os
 import glob
 from sklearn.cluster import DBSCAN
 from sklearn import linear_model, datasets
+from options import args
 
 x, y = None, None
 
@@ -75,7 +76,7 @@ def find_clusters(tracks):
     ms.fit(test)
     return ms.cluster_centers_
 
-orb = cv2.ORB_create(nfeatures=2000)
+orb = cv2.ORB_create(args.n_features)
 tkps, tdes = calibration('./images')
 # cap = cv2.VideoCapture('output.avi')
 bf = cv2.BFMatcher(cv2.NORM_HAMMING)

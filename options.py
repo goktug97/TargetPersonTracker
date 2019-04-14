@@ -27,4 +27,8 @@ parser.add_argument('--hier_thresh', type=float, default=0.5,
 parser.add_argument('--nms_overlap', type=float, default=0.45,
                     help='YOLO Non-Max Supression Overlap Value')
 
+# ORB
+parser.add_argument('--n_features', type=int, default=2000,
+                    help='ORB Features detector max detected features')
+
 args = parser.parse_args()
