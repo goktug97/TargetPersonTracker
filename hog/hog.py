@@ -6,7 +6,7 @@ import cv2
 import utils
 
 
-class Detector(object):
+class HOGDetector(object):
     """Detector class for people detection."""
 
     def __init__(self):
@@ -61,7 +61,7 @@ class Detector(object):
 if __name__ == '__main__':
     import argparse
 
-    hog = Detector()
+    hog = HOGDetector()
 
     ap = argparse.ArgumentParser()
     ap.add_argument('-i', '--input',

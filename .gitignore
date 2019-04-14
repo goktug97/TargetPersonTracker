@@ -6,3 +6,4 @@ images
 eco
 feature.py
 record.py 
+*.weights
