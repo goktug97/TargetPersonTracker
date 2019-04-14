@@ -1,10 +1,11 @@
 import cv2
 import numpy as np
 from scipy.spatial import cKDTree
-from common import draw_str
+from utils import draw_str
 import os
 import glob
 from sklearn.cluster import DBSCAN
+from sklearn import linear_model, datasets
 
 x, y = None, None
 
@@ -16,11 +17,12 @@ def callback(event, cx, cy, flags, param):
 
 def extract_features(frame):
     # detection
-    pts = cv2.goodFeaturesToTrack(np.mean(frame, axis=2).astype(np.uint8),
-                                  3000, qualityLevel=0.01, minDistance=7)
+    # pts = cv2.goodFeaturesToTrack(np.mean(frame, axis=2).astype(np.uint8),
+    #                              3000, qualityLevel=0.01, minDistance=7)
 
     # extraction
-    kps = [cv2.KeyPoint(x=f[0][0], y=f[0][1], _size=20) for f in pts]
+    # kps = [cv2.KeyPoint(x=f[0][0], y=f[0][1], _size=20) for f in pts]
+    kps = orb.detect(frame,None)
     kps, des = orb.compute(frame, kps)
 
     return kps, des
@@ -60,23 +62,30 @@ feature_params = dict( maxCorners = 500,
 
 track_len = 10
 
-def test(tracks):
+def find_clusters(tracks):
+    from sklearn.cluster import MeanShift, estimate_bandwidth
     test = []
     for track in tracks:
-        x, y = track
-        test.append([x,y])
-    db = DBSCAN(eps=0.3, min_samples=10).fit(np.array(test))
+        for trac in track:
+          x, y = trac
+          test.append([x,y])
+    # db = DBSCAN(eps=0.3, min_samples=10).fit(np.array(test))
+    # bandwidth = estimate_bandwidth(test, quantile=0.2, n_samples=500)
+    ms = MeanShift(bandwidth=30, bin_seeding=True)
+    ms.fit(test)
+    return ms.cluster_centers_
 
+orb = cv2.ORB_create(nfeatures=2000)
+tkps, tdes = calibration('./images')
 # cap = cv2.VideoCapture('output.avi')
 bf = cv2.BFMatcher(cv2.NORM_HAMMING)
 cap = cv2.VideoCapture(0)
+ransac = linear_model.RANSACRegressor()
 cap.set(cv2.CAP_PROP_FPS, 10)
-orb = cv2.ORB_create()
 cv2.namedWindow('cvwindow')
 ret, frame = cap.read()
 track = []
 prev_frame = frame.copy()
-tkps, tdes = calibration('./images')
 frame_idx = 0
 detect_interval = 10
 while ret:
@@ -100,6 +109,20 @@ while ret:
             new_tracks.append(tr)
             cv2.circle(vis, (x, y), 2, (0, 255, 0), -1)
         track = new_tracks
+        cluster_centers = find_clusters(track)
+
+        # detect outliers
+        if len(cluster_centers) > 3:
+            ransac.fit(cluster_centers[:, 0, np.newaxis],
+                       cluster_centers[:,1, np.newaxis])
+            print(ransac.inlier_mask_)
+
+        for cluster_center, inlier in zip(cluster_centers,
+                                          ransac.inlier_mask_ if len(cluster_centers) >3 else [True]*len(cluster_centers)):
+            cv2.circle(
+                vis,
+                (int(cluster_center[0]), int(cluster_center[1])),
+                60, (0,255,0) if inlier else (0,0,0))
         cv2.polylines(vis, [np.int32(tr) for tr in track], False, (0, 255, 0))
         draw_str(vis, (20, 20), 'track count: %d' % len(track))
     if frame_idx % detect_interval == 0:
@@ -110,13 +133,13 @@ while ret:
 
         for m,n in matches:
           if m.distance < 0.75*n.distance:
-            p1 = tkps[m.queryIdx]
-            p2 = [kps[m.trainIdx]]
+              p1 = tkps[m.queryIdx]
+              p2 = [kps[m.trainIdx]]
 
-            # be within orb distance 32
-            if m.distance < 30:
-                idx1.append(m.queryIdx)
-                idx2.append(m.trainIdx)
+              # be within orb distance 32
+              if m.distance < 32:
+                  idx1.append(m.queryIdx)
+                  idx2.append(m.trainIdx)
 
         xtrack = [kps[idx] for idx in idx2] 
         for kp in xtrack:
