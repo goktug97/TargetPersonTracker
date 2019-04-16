@@ -18,14 +18,15 @@ if __name__ == '__main__':
     from options import args
     from utils import draw_detections
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(args.input)
 
     detector = Detector(args)
 
-    while True:
-        ret, frame = cap.read()
+    ret, frame = cap.read()
+    while ret:
         dets = detector.detect(frame)
         draw_detections(frame, dets)
         cv2.imshow('cvwindow', frame)
         if cv2.waitKey(1) == 27:
           break
+        ret, frame = cap.read()

@@ -22,10 +22,13 @@ class HOGDetector(object):
                                width=min(400, frame.shape[1]))
         self.resized_shape = frame.shape
 
-        # detection (xmin, ymin, width, height)
+        # Detection
         rects, _ = self.hog.detectMultiScale(
             frame, winStride=(4, 4),
             padding=(8, 8), scale=1.05)
+
+        # Convert dets to xmin,ymin,xmax,ymax format
+        rects = np.array([[x, y, x + w, y + h] for (x, y, w, h) in rects])
 
         # Non-Max Supression (xmin, ymin, xmax, ymax)
         self.detects = utils.nms(rects=rects, overlapThresh=0.65)
