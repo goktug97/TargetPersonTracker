@@ -267,17 +267,9 @@ class Tracker(object):
             if len(self.track):
                 self.optical_flow_tracking(frame, prev_frame)
 
-                # Draw tracked points
-                for pts in self.track:
-                    cv2.polylines(vis, np.array([pts], dtype=np.int32),
-                                  False, utils.colors[len(pts)])
-
-                utils.draw_str(vis, (20, 20),
-                               'track count: %d' % len(self.track))
-
             # Add new features
             if not frame_idx % self.args.add_every:
-                if len(self.track) > 10:
+                if len(self.track) > self.args.min_tracked:
                     # Find center of the tracked points
                     cluster_centers = find_clusters(self.track)
 
@@ -299,7 +291,7 @@ class Tracker(object):
 
             # Remove false positive features
             # NOTE: Might remove wrong features in some situations
-            if len(self.track):
+            if len(self.track) > self.args.min_tracked:
                 if not frame_idx % self.args.remove_every:
                     # TODO: Check for all track points
                     x, y = self.track[-1][-1]
@@ -333,6 +325,17 @@ class Tracker(object):
                 dets = self.retrack(frame)
 
             utils.draw_detections(vis, dets)
+
+            utils.draw_str(vis, (20, 20),
+                           'track count: %d' % len(self.track))
+
+            utils.draw_str(vis, (20, 40),
+                           'target features: %d' % len(self.tkps))
+
+            # Draw tracked points
+            for pts in self.track:
+                cv2.polylines(vis, np.array([pts], dtype=np.int32),
+                              False, utils.colors[len(pts)])
 
             # Show frame
             cv2.imshow(self.args.window_name, vis)

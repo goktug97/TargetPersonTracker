@@ -20,7 +20,7 @@ parser.add_argument('--camera_fps', type=int, default=0,
                     help='Camera FPS')
 
 # Detector
-parser.add_argument('--detector', type=str, default='mobilnet',
+parser.add_argument('--detector', type=str, default='mobilenet',
                     choices=('yolo', 'hog', 'mobilenet'),
                     help='Detector name')
 
@@ -55,6 +55,10 @@ parser.add_argument('--min_match_threshold', type=int, default=10,
                     help=(
                         'Minimum required match for retracking to'
                         'to reduce false positives.'))
+
+parser.add_argument('--min_tracked', type=int, default=20,
+                    help=('Minimum required tracked point to do any'
+                          'action like removing and adding'))
 
 parser.add_argument('--remove_every', type=int, default=50,
                     help=('Remove false positive features once every'
