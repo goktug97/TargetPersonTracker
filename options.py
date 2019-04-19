@@ -36,7 +36,7 @@ parser.add_argument('--height_multiplier', type=float, default=0.9,
 parser.add_argument('--track_len', type=int, default=9,
                     help='Tracking lenght of a feature')
 
-parser.add_argument('--n_tracked', type=int, default=1600,
+parser.add_argument('--n_tracked', type=int, default=3000,
                     help='Minumum number of features to start tracking')
 
 parser.add_argument('--ftype', type=str, default='good',
@@ -46,17 +46,23 @@ parser.add_argument('--ftype', type=str, default='good',
 parser.add_argument('--distance', type=int, default=50,
                     help='Filtering distance from the center')
 
-parser.add_argument('--tracking_thresh', type=int, default=20,
+parser.add_argument('--tracking_thresh', type=int, default=10,
                     help=(
                         'If tracked features are less than this value'
                         'retracking will be activated.'))
 
-parser.add_argument('--min_match_threshold', type=int, default=20,
+parser.add_argument('--min_match_threshold', type=int, default=10,
                     help=(
                         'Minimum required match for retracking to'
                         'to reduce false positives.'))
 
-parser.add_argument('--remove_every', type=int, default=20,
+parser.add_argument('--remove_every', type=int, default=50,
+                    help=('Remove false positive features once every'
+                          'specified frame'))
+parser.add_argument('--add_every', type=int, default=10,
+                    help=('Remove false positive features once every'
+                          'specified frame'))
+parser.add_argument('--retrack_every', type=int, default=10,
                     help=('Remove false positive features once every'
                           'specified frame'))
 
@@ -67,7 +73,7 @@ parser.add_argument('--mobilenet_prototxt', type=str,
 parser.add_argument('--mobilenet_model', type=str,
                     default='./mobilenetssd/mobilenet_iter_73000.caffemodel',
                     help='MobileNet SSD Caffe Model')
-parser.add_argument('--mobilenet_confidence', type=float, default=0.2,
+parser.add_argument('--mobilenet_confidence', type=float, default=0.7,
                     help='Mobilnet threshold')
 
 # YOLO

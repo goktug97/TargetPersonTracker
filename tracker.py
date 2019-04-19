@@ -17,7 +17,7 @@ def extract_features(frame, n_features, ftype, mask):
     elif ftype == 'good':
         pts = cv2.goodFeaturesToTrack(
             np.mean(frame, axis=2).astype(np.uint8),
-            3000, qualityLevel=0.02, minDistance=7,
+            3000, qualityLevel=0.04, minDistance=7,
             mask=mask)
         if pts is not None:
             kps = [cv2.KeyPoint(x=f[0][0], y=f[0][1], _size=20) for f in pts]
@@ -221,8 +221,6 @@ class Tracker(object):
             # break if threshold is satisfied
             utils.draw_str(vis, (20, 20), 'Features: %d' % len(self.tkps))
             if len(self.tkps) > self.args.n_tracked:
-                # Create KD tree consisting track points
-                self.kd = cKDTree(self.tkps)
                 break
 
             cv2.imshow(self.args.window_name, vis)
@@ -247,24 +245,19 @@ class Tracker(object):
                 det = reduce_area_of_detection(det,
                                                self.args.width_multiplier,
                                                self.args.height_multiplier)
-
                 mask = create_upper_mask(det, frame.shape)
-
                 kps, des = extract_features(frame, self.args.n_features,
                                             self.args.ftype, mask)
 
                 if len(kps):
                     idx1, idx2 = match_features(np.array(self.tdes), des)
-
                     self.track = [[(kps[idx][0], kps[idx][1])]
                                   for idx in idx2]
-
                     break
 
         prev_frame = frame.copy()
         frame_idx = 0
         while True:
-            # TODO: Add new features while tracking
             ret, frame = self.cap.read()
             if not ret:
                 break
@@ -274,45 +267,69 @@ class Tracker(object):
             if len(self.track):
                 self.optical_flow_tracking(frame, prev_frame)
 
-                # find_clusters(self.track)
-
                 # Draw tracked points
                 for pts in self.track:
                     cv2.polylines(vis, np.array([pts], dtype=np.int32),
                                   False, utils.colors[len(pts)])
 
-                utils.draw_str(
-                    vis, (20, 20), 'track count: %d' % len(self.track))
+                utils.draw_str(vis, (20, 20),
+                               'track count: %d' % len(self.track))
 
+            # Add new features
+            if not frame_idx % self.args.add_every:
+                if len(self.track) > 10:
+                    # Find center of the tracked points
+                    cluster_centers = find_clusters(self.track)
+
+                    # extract features
+                    kps, des = extract_features(
+                        frame, self.args.n_features,
+                        self.args.ftype, None)
+                    point_tree = cKDTree(kps)
+
+                    # Pick features around the center
+                    for cluster_center in cluster_centers:
+                        idxs = point_tree.query_ball_point(
+                            cluster_center, 20)
+                        if len(idxs):
+                            print('Added {} new features'.format(len(idxs)))
+                            for idx in idxs:
+                                self.tkps.append(kps[idx])
+                                self.tdes.append(des[idx])
+
+            # Remove false positive features
+            # NOTE: Might remove wrong features in some situations
             if len(self.track):
-                # Remove false positive features
-                if frame_idx % self.args.remove_every:
+                if not frame_idx % self.args.remove_every:
+                    # TODO: Check for all track points
+                    x, y = self.track[-1][-1]
                     dets = self.detector.detect(frame)
 
                     # Find bounding box of current target
-                    x, y = self.track[-1][-1]
                     det = find_detection(dets, int(x), int(y))
-                    if det is None:
-                        continue
+                    if det is not None:
+                        # Create inverse mask
+                        xmin, ymin, xmax, ymax = det
+                        mask = np.ones(frame.shape[:2], dtype=np.uint8) * 255
+                        mask[ymin:ymax, xmin:xmax] = 0
 
-                    # Create inverse mask
-                    xmin, ymin, xmax, ymax = det
-                    mask = np.ones(frame.shape[:2], dtype=np.uint8) * 255
-                    mask[ymin:ymax, xmin:xmax] = 0
+                        kps, des = extract_features(frame,
+                                                    self.args.n_features,
+                                                    self.args.ftype, mask)
+                        idx1, idx2 = match_features(np.array(self.tdes), des)
 
-                    kps, des = extract_features(frame, self.args.n_features,
-                                                self.args.ftype, mask)
-                    idx1, idx2 = match_features(np.array(self.tdes), des)
-
-                    # Remove matches
-                    if len(idx1):
-                        print('Removed {} False Positives'.format(idx1))
-                        for idx in sorted(idx1, reverse=True):
-                            del self.tdes[idx]
-                            del self.tkps[idx]
+                        # Remove matches
+                        if len(idx1):
+                            print(
+                                'Removed {} False Positives'.format(
+                                    len(idx1)))
+                            for idx in sorted(idx1, reverse=True):
+                                del self.tdes[idx]
+                                del self.tkps[idx]
 
             # Retracking
-            if len(self.track) < self.args.tracking_thresh:
+            if (len(self.track) < self.args.tracking_thresh or
+                    not frame_idx % self.args.retrack_every):
                 dets = self.retrack(frame)
 
             utils.draw_detections(vis, dets)
