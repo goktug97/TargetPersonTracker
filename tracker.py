@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import cv2
 import numpy as np
 from scipy.spatial import cKDTree
@@ -203,7 +205,7 @@ class Tracker(object):
             for i, kp in enumerate(kps):
                 x, y = kp
                 kps[i] = x, y
-                cv2.circle(vis, tuple(kps[i]), 2, (0, 0, 0), 2)
+                cv2.circle(vis, tuple(kps[i]), 4, (125, 0, 125), 2)
 
             # check matches to reduce duplicates
             # and to collect features evenly
@@ -320,7 +322,7 @@ class Tracker(object):
         # for all detections.
         dets = self.detector.detect(frame)
         if len(self.track) is not 0:
-            x, y = self.track[-1][1]
+            x, y = self.track[-1][-1]
             dets = [find_detection(dets, int(x), int(y))]
 
         if len(dets) > 0 and dets[0] is not None:
@@ -338,7 +340,9 @@ class Tracker(object):
                 if len(kps) > 0:
                     idx1, idx2 = match_features(
                         np.array(self.tdes), des)
-                    if len(idx1) > 0:
+                    # Check whether it is larger than specified threshold
+                    # to reduce false positives.
+                    if len(idx1) > self.args.min_match_threshold:
                         kps, des = filter_features(
                             [kps[idx] for idx in idx2],
                             [des[idx] for idx in idx2],

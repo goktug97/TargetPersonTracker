@@ -9,3 +9,4 @@ record.py
 *.weights
 capture_video.py
 point.py
+*.caffemodel

@@ -6,6 +6,9 @@ class Detector(object):
         elif args.detector == 'hog':
             from hog import HOGDetector
             self.detector = HOGDetector()
+        elif args.detector == 'mobilenet':
+            from mobilenetssd import MobileNetSSD
+            self.detector = MobileNetSSD(args)
 
     def detect(self, frame):
         dets = self.detector.detect(frame)
@@ -17,12 +20,14 @@ if __name__ == '__main__':
 
     from options import args
     from utils import draw_detections
+    import time
 
     cap = cv2.VideoCapture(args.input)
 
     detector = Detector(args)
 
     ret, frame = cap.read()
+    time.sleep(0.5)
     while ret:
         dets = detector.detect(frame)
         draw_detections(frame, dets)

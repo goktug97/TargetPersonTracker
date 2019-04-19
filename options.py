@@ -4,7 +4,7 @@ parser = argparse.ArgumentParser(description='Tracker')
 
 # General
 parser.add_argument('--input', default=0,
-                    help='Input video, 0 for camera')
+                    help='Input video, if not given use camera')
 
 parser.add_argument('--window_name', type=str,
                     default='cvwindow',
@@ -20,8 +20,8 @@ parser.add_argument('--camera_fps', type=int, default=0,
                     help='Camera FPS')
 
 # Detector
-parser.add_argument('--detector', type=str, default='yolo',
-                    choices=('yolo', 'hog'),
+parser.add_argument('--detector', type=str, default='mobilnet',
+                    choices=('yolo', 'hog', 'mobilenet'),
                     help='Detector name')
 
 # Tracker
@@ -37,20 +37,34 @@ parser.add_argument('--track_len', type=int, default=9,
                     help='Tracking lenght of a feature')
 
 parser.add_argument('--n_tracked', type=int, default=1600,
-                    help='Number of tracked features')
+                    help='Minumum number of features to start tracking')
 
 parser.add_argument('--ftype', type=str, default='good',
                     choices=('orb', 'good'),
                     help='OpenCV ORB or GoodFeaturesToTrack')
 
 parser.add_argument('--distance', type=int, default=50,
-                    help='Filtering distance from distance')
+                    help='Filtering distance from the center')
 
-parser.add_argument('--tracking_thresh', type=int, default=50,
+parser.add_argument('--tracking_thresh', type=int, default=20,
                     help=(
                         'If tracked features are less than this value'
-                        'retracking will be activated.'
-                    ))
+                        'retracking will be activated.'))
+
+parser.add_argument('--min_match_threshold', type=int, default=20,
+                    help=(
+                        'Minimum required match for retracking to'
+                        'to reduce false positives.'))
+
+# MobileNet SSD
+parser.add_argument('--mobilenet_prototxt', type=str,
+                    default='./mobilenetssd/deploy.prototxt',
+                    help='MobileNet SSD prototxt')
+parser.add_argument('--mobilenet_model', type=str,
+                    default='./mobilenetssd/mobilenet_iter_73000.caffemodel',
+                    help='MobileNet SSD Caffe Model')
+parser.add_argument('--mobilenet_confidence', type=float, default=0.2,
+                    help='Mobilnet threshold')
 
 # YOLO
 parser.add_argument('--yolo_cfg', type=str,
