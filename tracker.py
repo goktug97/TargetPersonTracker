@@ -221,7 +221,6 @@ class Tracker(object):
             # break if threshold is satisfied
             utils.draw_str(vis, (20, 20), 'Features: %d' % len(self.tkps))
             if len(self.tkps) > self.args.n_tracked:
-                self.tdes = np.array(self.tdes)
                 # Create KD tree consisting track points
                 self.kd = cKDTree(self.tkps)
                 break
@@ -285,8 +284,10 @@ class Tracker(object):
                 utils.draw_str(
                     vis, (20, 20), 'track count: %d' % len(self.track))
 
+            if len(self.track):
                 # Remove false positive features
                 if frame_idx % self.args.remove_every:
+                    dets = self.detector.detect(frame)
 
                     # Find bounding box of current target
                     x, y = self.track[-1][-1]
@@ -305,8 +306,10 @@ class Tracker(object):
 
                     # Remove matches
                     if len(idx1):
+                        print('Removed {} False Positives'.format(idx1))
                         for idx in sorted(idx1, reverse=True):
                             del self.tdes[idx]
+                            del self.tkps[idx]
 
             # Retracking
             if len(self.track) < self.args.tracking_thresh:
