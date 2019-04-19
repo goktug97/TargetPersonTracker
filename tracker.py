@@ -210,11 +210,11 @@ class Tracker(object):
             if len(self.tdes) and len(des):
                 idx1, idx2 = match_features(
                     np.array(self.tdes, dtype=np.uint8), des)
-                if len(idx1) > 10:
-                    continue
+                des = np.delete(des, idx2, 0)
+                kps = np.delete(kps, idx2, 0)
 
             # Populate the tracked features
-            if len(des) > 0:
+            if len(des):
                 self.tkps.extend(kps)
                 self.tdes.extend(des)
 
@@ -268,56 +268,56 @@ class Tracker(object):
                 self.optical_flow_tracking(frame, prev_frame)
 
             # Add new features
-            if not frame_idx % self.args.add_every:
-                if len(self.track) > self.args.min_tracked:
-                    # Find center of the tracked points
-                    cluster_centers = find_clusters(self.track)
+            if (not frame_idx % self.args.add_every and
+                    len(self.track) > self.args.min_tracked):
+                # Find center of the tracked points
+                cluster_centers = find_clusters(self.track)
 
-                    # extract features
-                    kps, des = extract_features(
-                        frame, self.args.n_features,
-                        self.args.ftype, None)
-                    point_tree = cKDTree(kps)
+                # extract features
+                kps, des = extract_features(
+                    frame, self.args.n_features,
+                    self.args.ftype, None)
+                point_tree = cKDTree(kps)
 
-                    # Pick features around the center
-                    for cluster_center in cluster_centers:
-                        idxs = point_tree.query_ball_point(
-                            cluster_center, 20)
-                        if len(idxs):
-                            print('Added {} new features'.format(len(idxs)))
-                            for idx in idxs:
-                                self.tkps.append(kps[idx])
-                                self.tdes.append(des[idx])
+                # Pick features around the center
+                for cluster_center in cluster_centers:
+                    idxs = point_tree.query_ball_point(
+                        cluster_center, 20)
+                    if len(idxs):
+                        print('Added {} new features'.format(len(idxs)))
+                        for idx in idxs:
+                            self.tkps.append(kps[idx])
+                            self.tdes.append(des[idx])
 
             # Remove false positive features
             # NOTE: Might remove wrong features in some situations
-            if len(self.track) > self.args.min_tracked:
-                if not frame_idx % self.args.remove_every:
-                    # TODO: Check for all track points
-                    x, y = self.track[-1][-1]
-                    dets = self.detector.detect(frame)
+            if (len(self.track) > self.args.min_tracked and
+                    not frame_idx % self.args.remove_every):
+                # TODO: Check for all track points
+                x, y = self.track[-1][-1]
+                dets = self.detector.detect(frame)
 
-                    # Find bounding box of current target
-                    det = find_detection(dets, int(x), int(y))
-                    if det is not None:
-                        # Create inverse mask
-                        xmin, ymin, xmax, ymax = det
-                        mask = np.ones(frame.shape[:2], dtype=np.uint8) * 255
-                        mask[ymin:ymax, xmin:xmax] = 0
+                # Find bounding box of current target
+                det = find_detection(dets, int(x), int(y))
+                if det is not None:
+                    # Create inverse mask
+                    xmin, ymin, xmax, ymax = det
+                    mask = np.ones(frame.shape[:2], dtype=np.uint8) * 255
+                    mask[ymin:ymax, xmin:xmax] = 0
 
-                        kps, des = extract_features(frame,
-                                                    self.args.n_features,
-                                                    self.args.ftype, mask)
-                        idx1, idx2 = match_features(np.array(self.tdes), des)
+                    kps, des = extract_features(frame,
+                                                self.args.n_features,
+                                                self.args.ftype, mask)
+                    idx1, idx2 = match_features(np.array(self.tdes), des)
 
-                        # Remove matches
-                        if len(idx1):
-                            print(
-                                'Removed {} False Positives'.format(
-                                    len(idx1)))
-                            for idx in sorted(idx1, reverse=True):
-                                del self.tdes[idx]
-                                del self.tkps[idx]
+                    # Remove matches
+                    if len(idx1):
+                        print(
+                            'Removed {} False Positives'.format(
+                                len(idx1)))
+                        for idx in sorted(idx1, reverse=True):
+                            del self.tdes[idx]
+                            del self.tkps[idx]
 
             # Retracking
             if (len(self.track) < self.args.tracking_thresh or
