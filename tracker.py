@@ -1,16 +1,12 @@
 #!/usr/bin/env python
+"""Tracking target person with ORB features and Lucas Kanade Optical Flow."""
 
-import cv2
-import numpy as np
-from scipy.spatial import cKDTree
-from utils import draw_str
-import os
-import glob
-from sklearn.cluster import DBSCAN
-from sklearn import linear_model, datasets
-from detector import Detector
-import utils
-from sklearn.cluster import MeanShift, estimate_bandwidth
+import cv2  # noqa: I201
+from detector import Detector  # noqa: I201
+import numpy as np  # noqa: I201
+from scipy.spatial import cKDTree  # noqa: I201
+from sklearn.cluster import MeanShift  # noqa: I201
+import utils  # noqa: I201
 
 
 def extract_features(frame, n_features, ftype, mask):
@@ -155,7 +151,7 @@ class Tracker(object):
         # Populate tracking points
         self.collect_features()
 
-        # Lunas Optical Flow Params
+        # Lucas Optical Flow Params
         self.lk_params = {'winSize': (15, 15),
                           'maxLevel': 2,
                           'criteria': (
@@ -172,7 +168,7 @@ class Tracker(object):
             # Detect people
             dets = self.detector.detect(frame)
 
-            if not len(dets) > 0:
+            if not len(dets):
                 continue
 
             utils.draw_detections(vis, dets)
@@ -197,6 +193,8 @@ class Tracker(object):
                                         self.args.n_features,
                                         self.args.ftype,
                                         mask)
+            if not len(kps):
+                continue
 
             # Keep center features only
             kps, des = filter_features(kps, des, det, self.args.distance)
@@ -209,7 +207,7 @@ class Tracker(object):
 
             # check matches to reduce duplicates
             # and to collect features evenly
-            if len(self.tdes) > 0 and len(des) > 0:
+            if len(self.tdes) and len(des):
                 idx1, idx2 = match_features(
                     np.array(self.tdes, dtype=np.uint8), des)
                 if len(idx1) > 10:
@@ -221,7 +219,7 @@ class Tracker(object):
                 self.tdes.extend(des)
 
             # break if threshold is satisfied
-            draw_str(vis, (20, 20), 'Features: %d' % len(self.tkps))
+            utils.draw_str(vis, (20, 20), 'Features: %d' % len(self.tkps))
             if len(self.tkps) > self.args.n_tracked:
                 self.tdes = np.array(self.tdes)
                 # Create KD tree consisting track points
@@ -256,7 +254,7 @@ class Tracker(object):
                 kps, des = extract_features(frame, self.args.n_features,
                                             self.args.ftype, mask)
 
-                if len(kps) > 0:
+                if len(kps):
                     idx1, idx2 = match_features(np.array(self.tdes), des)
 
                     self.track = [[(kps[idx][0], kps[idx][1])]
@@ -265,20 +263,50 @@ class Tracker(object):
                     break
 
         prev_frame = frame.copy()
+        frame_idx = 0
         while True:
+            # TODO: Add new features while tracking
             ret, frame = self.cap.read()
             if not ret:
                 break
             vis = frame.copy()
 
             # Optical Flow
-            if len(self.track) > 0:
+            if len(self.track):
                 self.optical_flow_tracking(frame, prev_frame)
+
                 # find_clusters(self.track)
+
+                # Draw tracked points
                 for pts in self.track:
                     cv2.polylines(vis, np.array([pts], dtype=np.int32),
                                   False, utils.colors[len(pts)])
-                draw_str(vis, (20, 20), 'track count: %d' % len(self.track))
+
+                utils.draw_str(
+                    vis, (20, 20), 'track count: %d' % len(self.track))
+
+                # Remove false positive features
+                if frame_idx % self.args.remove_every:
+
+                    # Find bounding box of current target
+                    x, y = self.track[-1][-1]
+                    det = find_detection(dets, int(x), int(y))
+                    if det is None:
+                        continue
+
+                    # Create inverse mask
+                    xmin, ymin, xmax, ymax = det
+                    mask = np.ones(frame.shape[:2], dtype=np.uint8) * 255
+                    mask[ymin:ymax, xmin:xmax] = 0
+
+                    kps, des = extract_features(frame, self.args.n_features,
+                                                self.args.ftype, mask)
+                    idx1, idx2 = match_features(np.array(self.tdes), des)
+
+                    # Remove matches
+                    if len(idx1):
+                        for idx in sorted(idx1, reverse=True):
+                            del self.tdes[idx]
 
             # Retracking
             if len(self.track) < self.args.tracking_thresh:
@@ -292,9 +320,10 @@ class Tracker(object):
                 break
 
             prev_frame = frame.copy()
+            frame_idx += 1
 
     def optical_flow_tracking(self, frame, prev_frame):
-        """Lunas Kanade Optical Flow tracking."""
+        """Lucas Kanade Optical Flow tracking."""
         p0 = np.float32([tr[-1] for tr in self.track]).reshape(-1, 1, 2)
         p1, _, _ = cv2.calcOpticalFlowPyrLK(
             prev_frame, frame, p0, None, **self.lk_params)
@@ -321,11 +350,11 @@ class Tracker(object):
         # on current area, else it will check features
         # for all detections.
         dets = self.detector.detect(frame)
-        if len(self.track) is not 0:
+        if len(self.track):
             x, y = self.track[-1][-1]
             dets = [find_detection(dets, int(x), int(y))]
 
-        if len(dets) > 0 and dets[0] is not None:
+        if len(dets) and dets[0] is not None:
             for det in dets:
                 det = reduce_area_of_detection(
                     det,
@@ -337,7 +366,7 @@ class Tracker(object):
                 kps, des = extract_features(
                     frame, self.args.n_features,
                     self.args.ftype, mask=mask)
-                if len(kps) > 0:
+                if len(kps):
                     idx1, idx2 = match_features(
                         np.array(self.tdes), des)
                     # Check whether it is larger than specified threshold

@@ -56,6 +56,10 @@ parser.add_argument('--min_match_threshold', type=int, default=20,
                         'Minimum required match for retracking to'
                         'to reduce false positives.'))
 
+parser.add_argument('--remove_every', type=int, default=20,
+                    help=('Remove false positive features once every'
+                          'specified frame'))
+
 # MobileNet SSD
 parser.add_argument('--mobilenet_prototxt', type=str,
                     default='./mobilenetssd/deploy.prototxt',
