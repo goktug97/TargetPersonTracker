@@ -1,4 +1,3 @@
-from options import args
 import tracker
 import cv2
 import utils
@@ -56,5 +55,7 @@ class Example(tracker.Tracker):
             return False
         return True
 
-tracker = Example(args)
-tracker.run()
+if __name__ == '__main__':
+    from options import args
+    tracker = Example(args)
+    tracker.run()
