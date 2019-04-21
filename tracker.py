@@ -318,24 +318,27 @@ class Tracker(object):
                             del self.tdes[idx]
                             del self.tkps[idx]
 
-                # Remove duplicates
-                if not frame_idx % self.args.remove_duplicates_every:
-                    if new_points_len:
-                        idx1, idx2 = match_features(
-                            np.array(self.tdes[:-new_points_len]),
-                            np.array(self.tdes[-new_points_len:]))
+            # Remove duplicates
+            if not frame_idx % self.args.remove_duplicates_every:
+                if new_points_len:
+                    # Match old points with recently added points
+                    idx1, idx2 = match_features(
+                        np.array(self.tdes[:-new_points_len]),
+                        np.array(self.tdes[-new_points_len:]))
 
-                        if len(idx2):
-                            print('Removed {} duplicates'.format(len(idx2)))
-                            for idx in sorted(idx2, reverse=True):
-                                del self.tdes[-new_points_len:][idx]
-                                del self.tkps[-new_points_len:][idx]
+                    # Remove matches
+                    if len(idx2):
+                        print('Removed {} duplicates'.format(len(idx2)))
+                        for idx in sorted(idx2, reverse=True):
+                            del self.tdes[-new_points_len:][idx]
+                            del self.tkps[-new_points_len:][idx]
 
-                            new_points_len = 0
+                        new_points_len = 0
 
             # Retracking
             if (len(self.track) < self.args.tracking_thresh or
-                    not frame_idx % self.args.retrack_every):
+                    (not frame_idx % self.args.retrack_every and
+                     len(self.track) < 100)):
                 dets = self.retrack(frame)
 
             utils.draw_detections(vis, dets)

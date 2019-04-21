@@ -60,6 +60,9 @@ parser.add_argument('--min_tracked', type=int, default=20,
                     help=('Minimum required tracked point to do any'
                           'action like removing and adding'))
 
+parser.add_argument('--max_tracked', type=int, default=100,
+                    help=('Maximum tracked points'))
+
 parser.add_argument('--remove_every', type=int, default=50,
                     help=('Remove false positive features once every'
                           'specified frame'))
