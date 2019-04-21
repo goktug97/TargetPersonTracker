@@ -36,7 +36,7 @@ parser.add_argument('--height_multiplier', type=float, default=0.9,
 parser.add_argument('--track_len', type=int, default=9,
                     help='Tracking lenght of a feature')
 
-parser.add_argument('--n_tracked', type=int, default=3000,
+parser.add_argument('--n_tracked', type=int, default=6000,
                     help='Minumum number of features to start tracking')
 
 parser.add_argument('--ftype', type=str, default='good',

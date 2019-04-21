@@ -17,7 +17,7 @@ def extract_features(frame, n_features, ftype, mask):
     elif ftype == 'good':
         pts = cv2.goodFeaturesToTrack(
             np.mean(frame, axis=2).astype(np.uint8),
-            3000, qualityLevel=0.04, minDistance=7,
+            3000, qualityLevel=0.05, minDistance=7,
             mask=mask)
         if pts is not None:
             kps = [cv2.KeyPoint(x=f[0][0], y=f[0][1], _size=20) for f in pts]
@@ -120,8 +120,6 @@ def reduce_area_of_detection(det, width_multiplier, height_multiplier):
 def find_clusters(tracks):
     """Find clusters in tracked points."""
     tracks = list(map(lambda x: [x[0][0], x[0][1]], tracks))
-    # db = DBSCAN(eps=0.3, min_samples=10).fit(tracks)
-    # bandwidth = estimate_bandwidth(test, quantile=0.2, n_samples=500)
     ms = MeanShift(bandwidth=30, bin_seeding=True)
     ms.fit(tracks)
     return ms.cluster_centers_
@@ -203,7 +201,7 @@ class Tracker(object):
             for i, kp in enumerate(kps):
                 x, y = kp
                 kps[i] = x, y
-                cv2.circle(vis, tuple(kps[i]), 4, (125, 0, 125), 2)
+                cv2.circle(vis, tuple(kps[i]), 2, (255, 165, 0), -1)
 
             # check matches to reduce duplicates
             # and to collect features evenly
@@ -293,7 +291,6 @@ class Tracker(object):
             # NOTE: Might remove wrong features in some situations
             if (len(self.track) > self.args.min_tracked and
                     not frame_idx % self.args.remove_every):
-                # TODO: Check for all track points
                 x, y = self.track[-1][-1]
                 dets = self.detector.detect(frame)
 
@@ -404,6 +401,10 @@ class Tracker(object):
                         for kp in kps:
                             x, y = kp
                             self.track.append([(x, y)])
+        else:
+            # if no detection is found remove noise
+            if len(self.track) < 10:
+                self.track = []
         return dets
 
 
