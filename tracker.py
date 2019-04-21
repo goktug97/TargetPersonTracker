@@ -136,19 +136,12 @@ class Tracker(object):
 
         cv2.namedWindow(args.window_name)
 
-        # Camera Settings
-        self.cap = cv2.VideoCapture(args.input)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.camera_width)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.camera_height)
-        if (args.camera_fps):
-            self.cap.set(cv2.CAP_PROP_FPS, args.camera_fps)
+        # Initiliaze image source
+        self.init_source()
 
         # Chosen features for tracking
         self.tkps = []
         self.tdes = []
-
-        # Populate tracking points
-        self.collect_features()
 
         # Lucas Optical Flow Params
         self.lk_params = {'winSize': (15, 15),
@@ -160,9 +153,9 @@ class Tracker(object):
 
     def collect_features(self):
         """Collect features from chosen target for tracking."""
-        ret, frame = self.cap.read()
+        ret, frame = self.get_frame()
         while ret:
-            ret, frame = self.cap.read()
+            ret, frame = self.get_frame()
             vis = frame.copy()
             # Detect people
             dets = self.detector.detect(frame)
@@ -226,11 +219,33 @@ class Tracker(object):
             if cv2.waitKey(1) == 27:
                 break
 
+    def init_source(self):
+        """Initiliaze source for frames."""
+        self.source = cv2.VideoCapture(self.args.input)
+        # Camera Settings
+        self.source.set(cv2.CAP_PROP_FRAME_WIDTH, self.args.camera_width)
+        self.source.set(cv2.CAP_PROP_FRAME_HEIGHT, self.args.camera_height)
+        if (self.args.camera_fps):
+            self.source.set(cv2.CAP_PROP_FPS, self.args.camera_fps)
+
+    def output_function(self):
+        """Overload this function to interact with the tracked points."""
+        # TODO add *args or any other method to interact with the outside
+        pass
+
+    def get_frame(self):
+        """Get frame from initialized source."""
+        ret, frame = self.source.read()
+        return (ret, frame)
+
     def run(self):
         """Start tracking chosen target."""
+        # Populate tracking points
+        self.collect_features()
+
         # Find tracked points in current frame to start optical flow
         while True:
-            ret, frame = self.cap.read()
+            ret, frame = self.get_frame()
             dets = self.detector.detect(frame)
 
             center_x = self.args.camera_width//2
@@ -258,7 +273,7 @@ class Tracker(object):
         prev_frame = frame.copy()
         frame_idx = 0
         while True:
-            ret, frame = self.cap.read()
+            ret, frame = self.get_frame()
             if not ret:
                 break
             vis = frame.copy()
@@ -354,6 +369,8 @@ class Tracker(object):
             for pts in self.track:
                 cv2.polylines(vis, np.array([pts], dtype=np.int32),
                               False, utils.colors[min(len(pts), 9)])
+
+            self.output_function()
 
             # Show frame
             cv2.imshow(self.args.window_name, vis)
