@@ -253,6 +253,7 @@ class Tracker(object):
                                   for idx in idx2]
                     break
 
+        new_points_len = 0
         prev_frame = frame.copy()
         frame_idx = 0
         while True:
@@ -286,6 +287,7 @@ class Tracker(object):
                         for idx in idxs:
                             self.tkps.append(kps[idx])
                             self.tdes.append(des[idx])
+                        new_points_len += len(idxs)
 
             # Remove false positive features
             # NOTE: Might remove wrong features in some situations
@@ -315,6 +317,21 @@ class Tracker(object):
                         for idx in sorted(idx1, reverse=True):
                             del self.tdes[idx]
                             del self.tkps[idx]
+
+                # Remove duplicates
+                if not frame_idx % self.args.remove_duplicates_every:
+                    if new_points_len:
+                        idx1, idx2 = match_features(
+                            np.array(self.tdes[:-new_points_len]),
+                            np.array(self.tdes[-new_points_len:]))
+
+                        if len(idx2):
+                            print('Removed {} duplicates'.format(len(idx2)))
+                            for idx in sorted(idx2, reverse=True):
+                                del self.tdes[-new_points_len:][idx]
+                                del self.tkps[-new_points_len:][idx]
+
+                            new_points_len = 0
 
             # Retracking
             if (len(self.track) < self.args.tracking_thresh or

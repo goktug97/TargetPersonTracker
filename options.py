@@ -69,6 +69,8 @@ parser.add_argument('--add_every', type=int, default=10,
 parser.add_argument('--retrack_every', type=int, default=10,
                     help=('Remove false positive features once every'
                           'specified frame'))
+parser.add_argument('--remove_duplicates_every', type=int, default=20,
+                    help=('Remove duplicates after adding new features'))
 
 # MobileNet SSD
 parser.add_argument('--mobilenet_prototxt', type=str,
