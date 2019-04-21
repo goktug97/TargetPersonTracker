@@ -66,6 +66,7 @@ def match_features(des1, des2):
             continue
         else:
             m, n = match
+            # Lowe's ratio test
             if m.distance < 0.75*n.distance:
                 if m.distance < 32:
                     idx1.append(m.queryIdx)
@@ -352,7 +353,7 @@ class Tracker(object):
             # Draw tracked points
             for pts in self.track:
                 cv2.polylines(vis, np.array([pts], dtype=np.int32),
-                              False, utils.colors[len(pts)])
+                              False, utils.colors[min(len(pts), 9)])
 
             # Show frame
             cv2.imshow(self.args.window_name, vis)
