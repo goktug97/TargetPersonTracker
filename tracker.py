@@ -144,6 +144,9 @@ class Tracker(object):
         self.kps = []
         self.des = []
 
+        # tracked points
+        self.track_points = []
+
         # Lucas Optical Flow Params
         self.lk_params = {'winSize': (15, 15),
                           'maxLevel': 2,
@@ -155,72 +158,75 @@ class Tracker(object):
     def collect_features(self):
         """Collect features from chosen target for tracking."""
         ret, self.frame = self.get_frame()
-        while ret:
-            ret, self.frame = self.get_frame()
-            vis = self.frame.copy()
-            # Detect people
-            dets = self.detector.detect(self.frame)
+        if self.frame is None:
+            return True
+        vis = self.frame.copy()
+        # Detect people
+        dets = self.detector.detect(self.frame)
 
-            if not len(dets):
-                continue
+        if not len(dets):
+            return True
 
-            utils.draw_detections(vis, dets)
+        utils.draw_detections(vis, dets)
 
-            # Find center detection
-            center_x = self.args.camera_width//2
-            center_y = self.args.camera_height//2
-            det = find_detection(
-                dets, center_x, center_y)
-            # Detection might not be centered
-            if det is None:
-                continue
+        # Find center detection
+        center_x = self.args.camera_width//2
+        center_y = self.args.camera_height//2
+        det = find_detection(
+            dets, center_x, center_y)
+        # Detection might not be centered
+        if det is None:
+            return True
 
-            # Reduce area of the detection
-            det = reduce_area_of_detection(
-                det, self.args.width_multiplier,
-                self.args.height_multiplier)
+        # Reduce area of the detection
+        det = reduce_area_of_detection(
+            det, self.args.width_multiplier,
+            self.args.height_multiplier)
 
-            # Create mask with detection
-            mask = create_upper_mask(det, self.frame.shape[:2])
-            kps, des = extract_features(self.frame,
-                                        self.args.n_features,
-                                        self.args.ftype,
-                                        mask)
-            if not len(kps):
-                continue
+        # Create mask with detection
+        mask = create_upper_mask(det, self.frame.shape[:2])
+        kps, des = extract_features(self.frame,
+                                    self.args.n_features,
+                                    self.args.ftype,
+                                    mask)
+        if not len(kps):
+            return True
 
-            # Keep center features only
-            kps, des = filter_features(kps, des, det, self.args.distance)
+        # Keep center features only
+        kps, des = filter_features(kps, des, det, self.args.distance)
 
-            # Draw features
-            for i, kp in enumerate(kps):
-                cv2.circle(vis, tuple(kps[i]), 2, (255, 165, 0), -1)
+        # Draw features
+        for i, kp in enumerate(kps):
+            cv2.circle(vis, tuple(kps[i]), 2, (255, 165, 0), -1)
 
-            # check matches to reduce duplicates
-            # and to collect features evenly
-            if len(self.tdes) and len(des):
-                idx1, idx2 = match_features(
-                    np.array(self.tdes, dtype=np.uint8), des)
-                des = np.delete(des, idx2, 0)
-                kps = np.delete(kps, idx2, 0)
+        # check matches to reduce duplicates
+        # and to collect features evenly
+        if len(self.tdes) and len(des):
+            idx1, idx2 = match_features(
+                np.array(self.tdes, dtype=np.uint8), des)
+            des = np.delete(des, idx2, 0)
+            kps = np.delete(kps, idx2, 0)
 
-            # Populate the tracked features
-            if len(des):
-                self.tkps.extend(kps)
-                self.tdes.extend(des)
+        # Populate the tracked features
+        if len(des):
+            self.tkps.extend(kps)
+            self.tdes.extend(des)
 
-            # break if threshold is satisfied
-            utils.draw_str(vis, (20, 20), 'Features: %d' % len(self.tkps))
-            if len(self.tkps) > self.args.n_tracked:
-                break
+        # break if threshold is satisfied
+        utils.draw_str(vis, (20, 20), 'Features: %d' % len(self.tkps))
+        if len(self.tkps) > self.args.n_tracked:
+            return False
 
-            if not self.collect_features_output_wrapper(vis):
-                break
+        if not self.collect_features_output_wrapper(vis) or not ret:
+            return False
 
-    def initiliaze_points(self, kps=None, des=None):
+        return True
+
+    def initiliaze_target(self, kps=None, des=None):
         """Initiliaze tracking points."""
         if kps is None or des is None:
-            self.collect_features()
+            while self.collect_features():
+                pass
         else:
             self.tkps, self.tdes = kps, des
 
@@ -237,13 +243,13 @@ class Tracker(object):
         vis = self.frame.copy()
 
         utils.draw_str(vis, (20, 20),
-                       'track count: %d' % len(self.track))
+                       'track count: %d' % len(self.track_points))
 
         utils.draw_str(vis, (20, 40),
                        'target features: %d' % len(self.tkps))
 
         # Draw tracked points
-        for pts in self.track:
+        for pts in self.track_points:
             cv2.polylines(vis, np.array([pts], dtype=np.int32),
                           False, utils.colors[min(len(pts), 9)])
         # Show frame
@@ -257,135 +263,151 @@ class Tracker(object):
         ret, frame = self.source.read()
         return (ret, frame)
 
-    def run(self, *args):
-        """Start tracking chosen target."""
-        # Find tracked points in current frame to start optical flow
-        while True:
-            ret, self.frame = self.get_frame()
+    def init_track_points(self):
+        """Find track points in current frame to start tracking."""
+        ret, self.frame = self.get_frame()
+        dets = self.detector.detect(self.frame)
+
+        center_x = self.args.camera_width//2
+        center_y = self.args.camera_height//2
+        if len(dets) > 0:
+            det = find_detection(
+                dets, center_x, center_y)
+
+            if det is None:
+                return False
+            det = reduce_area_of_detection(det,
+                                           self.args.width_multiplier,
+                                           self.args.height_multiplier)
+            mask = create_upper_mask(det, self.frame.shape)
+            kps, des = extract_features(self.frame, self.args.n_features,
+                                        self.args.ftype, mask)
+
+            if len(kps):
+                idx1, idx2 = match_features(np.array(self.tdes), des)
+                self.track_points = [
+                    [(kps[idx][0], kps[idx][1])] for idx in idx2]
+
+    def track(self):
+        """Track points on current frame."""
+        ret, self.frame = self.get_frame()
+        if not ret:
+            self.running = False
+            return False
+
+        # Optical Flow
+        if len(self.track_points):
+            self.optical_flow_tracking()
+
+        # Add new features
+        if (not self.frame_idx % self.args.add_every and
+                len(self.track_points) > self.args.min_tracked):
+            # Find center of the tracked points
+            cluster_centers = find_clusters(self.track_points)
+
+            # extract features
+            kps, des = extract_features(
+                self.frame, self.args.n_features,
+                self.args.ftype, None)
+            point_tree = cKDTree(kps)
+
+            # Pick features around the center
+            for cluster_center in cluster_centers:
+                idxs = point_tree.query_ball_point(
+                    cluster_center, 20)
+                if len(idxs):
+                    print('Added {} new features'.format(len(idxs)))
+                    self.kps = []
+                    self.des = []
+                    for idx in idxs:
+                        self.kps.append(kps[idx])
+                        self.des.append(des[idx])
+                        self.tkps.append(kps[idx])
+                        self.tdes.append(des[idx])
+                    self.new_points_len += len(idxs)
+
+        # Remove false positive features
+        # NOTE: Might remove wrong features in some situations
+        if (len(self.track_points) > self.args.min_tracked and
+                not self.frame_idx % self.args.remove_every):
+            x, y = self.track_points[-1][-1]
             dets = self.detector.detect(self.frame)
 
-            center_x = self.args.camera_width//2
-            center_y = self.args.camera_height//2
-            if len(dets) > 0:
-                det = find_detection(
-                    dets, center_x, center_y)
+            # Find bounding box of current target
+            det = find_detection(dets, int(x), int(y))
+            if det is not None:
+                # Create inverse mask
+                xmin, ymin, xmax, ymax = det
+                mask = np.ones(self.frame.shape[:2],
+                               dtype=np.uint8) * 255
+                mask[ymin:ymax, xmin:xmax] = 0
 
-                if det is None:
-                    continue
-                det = reduce_area_of_detection(det,
-                                               self.args.width_multiplier,
-                                               self.args.height_multiplier)
-                mask = create_upper_mask(det, self.frame.shape)
-                kps, des = extract_features(self.frame, self.args.n_features,
+                kps, des = extract_features(self.frame,
+                                            self.args.n_features,
                                             self.args.ftype, mask)
+                idx1, idx2 = match_features(np.array(self.tdes), des)
 
-                if len(kps):
-                    idx1, idx2 = match_features(np.array(self.tdes), des)
-                    self.track = [[(kps[idx][0], kps[idx][1])]
-                                  for idx in idx2]
-                    break
+                # Remove matches
+                if len(idx1):
+                    print(
+                        'Removed {} False Positives'.format(
+                            len(idx1)))
+                    for idx in sorted(idx1, reverse=True):
+                        del self.tdes[idx]
+                        del self.tkps[idx]
 
-        new_points_len = 0
+        # Remove duplicates
+        if not self.frame_idx % self.args.remove_duplicates_every:
+            if self.new_points_len:
+                # Match old points with recently added points
+                idx1, idx2 = match_features(
+                    np.array(self.tdes[:-self.new_points_len]),
+                    np.array(self.tdes[-self.new_points_len:]))
+
+                # Remove matches
+                if len(idx2):
+                    print('Removed {} duplicates'.format(len(idx2)))
+                    for idx in sorted(idx2, reverse=True):
+                        del self.tdes[-self.new_points_len:][idx]
+                        del self.tkps[-self.new_points_len:][idx]
+
+                    self.new_points_len = 0
+
+        # Retracking
+        if (len(self.track_points) < self.args.tracking_thresh or
+                (not self.frame_idx % self.args.retrack_every and
+                 len(self.track_points) < 100)):
+            dets = self.retrack()
+
+        if not self.output_function():
+            self.running = False
+            return False
+
         self.prev_frame = self.frame.copy()
-        frame_idx = 0
-        while True:
-            ret, self.frame = self.get_frame()
-            if not ret:
-                break
+        self.frame_idx += 1
 
-            # Optical Flow
-            if len(self.track):
-                self.optical_flow_tracking()
+        return True
 
-            # Add new features
-            if (not frame_idx % self.args.add_every and
-                    len(self.track) > self.args.min_tracked):
-                # Find center of the tracked points
-                cluster_centers = find_clusters(self.track)
+    def run(self):
+        """Start tracking chosen target."""
+        # Find tracked points in current frame to start optical flow
+        if not len(self.tkps):
+            print('No features to track')
+            return False
+        while not len(self.track_points):
+            self.init_track_points()
 
-                # extract features
-                kps, des = extract_features(
-                    self.frame, self.args.n_features,
-                    self.args.ftype, None)
-                point_tree = cKDTree(kps)
-
-                # Pick features around the center
-                for cluster_center in cluster_centers:
-                    idxs = point_tree.query_ball_point(
-                        cluster_center, 20)
-                    if len(idxs):
-                        print('Added {} new features'.format(len(idxs)))
-                        self.kps = []
-                        self.des = []
-                        for idx in idxs:
-                            self.kps.append(kps[idx])
-                            self.des.append(des[idx])
-                            self.tkps.append(kps[idx])
-                            self.tdes.append(des[idx])
-                        new_points_len += len(idxs)
-
-            # Remove false positive features
-            # NOTE: Might remove wrong features in some situations
-            if (len(self.track) > self.args.min_tracked and
-                    not frame_idx % self.args.remove_every):
-                x, y = self.track[-1][-1]
-                dets = self.detector.detect(self.frame)
-
-                # Find bounding box of current target
-                det = find_detection(dets, int(x), int(y))
-                if det is not None:
-                    # Create inverse mask
-                    xmin, ymin, xmax, ymax = det
-                    mask = np.ones(self.frame.shape[:2],
-                                   dtype=np.uint8) * 255
-                    mask[ymin:ymax, xmin:xmax] = 0
-
-                    kps, des = extract_features(self.frame,
-                                                self.args.n_features,
-                                                self.args.ftype, mask)
-                    idx1, idx2 = match_features(np.array(self.tdes), des)
-
-                    # Remove matches
-                    if len(idx1):
-                        print(
-                            'Removed {} False Positives'.format(
-                                len(idx1)))
-                        for idx in sorted(idx1, reverse=True):
-                            del self.tdes[idx]
-                            del self.tkps[idx]
-
-            # Remove duplicates
-            if not frame_idx % self.args.remove_duplicates_every:
-                if new_points_len:
-                    # Match old points with recently added points
-                    idx1, idx2 = match_features(
-                        np.array(self.tdes[:-new_points_len]),
-                        np.array(self.tdes[-new_points_len:]))
-
-                    # Remove matches
-                    if len(idx2):
-                        print('Removed {} duplicates'.format(len(idx2)))
-                        for idx in sorted(idx2, reverse=True):
-                            del self.tdes[-new_points_len:][idx]
-                            del self.tkps[-new_points_len:][idx]
-
-                        new_points_len = 0
-
-            # Retracking
-            if (len(self.track) < self.args.tracking_thresh or
-                    (not frame_idx % self.args.retrack_every and
-                     len(self.track) < 100)):
-                dets = self.retrack()
-
-            if not self.output_function():
-                break
-
-            self.prev_frame = self.frame.copy()
-            frame_idx += 1
+        self.new_points_len = 0
+        self.prev_frame = self.frame.copy()
+        self.frame_idx = 0
+        self.running = True
+        while self.running:
+            self.track()
 
     def optical_flow_tracking(self):
         """Lucas Kanade Optical Flow tracking."""
-        p0 = np.float32([tr[-1] for tr in self.track]).reshape(-1, 1, 2)
+        p0 = np.float32(
+            [tr[-1] for tr in self.track_points]).reshape(-1, 1, 2)
         p1, _, _ = cv2.calcOpticalFlowPyrLK(
             self.prev_frame, self.frame, p0, None, **self.lk_params)
         p0r, _, _ = cv2.calcOpticalFlowPyrLK(
@@ -396,14 +418,14 @@ class Tracker(object):
         good = d < 1
         new_tracks = []
         for tr, (x, y), good_flag in zip(
-                self.track, p1.reshape(-1, 2), good):
+                self.track_points, p1.reshape(-1, 2), good):
             if not good_flag:
                 continue
             tr.append((x, y))
             if len(tr) > self.args.track_len:
                 del tr[0]
             new_tracks.append(tr)
-        self.track = new_tracks
+        self.track_points = new_tracks
 
     def retrack(self):
         """Initiliaze retracking for recognized features."""
@@ -411,8 +433,8 @@ class Tracker(object):
         # on current area, else it will check features
         # for all detections.
         dets = self.detector.detect(self.frame)
-        if len(self.track):
-            x, y = self.track[-1][-1]
+        if len(self.track_points):
+            x, y = self.track_points[-1][-1]
             dets = [find_detection(dets, int(x), int(y))]
 
         if len(dets) and dets[0] is not None:
@@ -441,11 +463,11 @@ class Tracker(object):
 
                         for kp in kps:
                             x, y = kp
-                            self.track.append([(x, y)])
+                            self.track_points.append([(x, y)])
         else:
             # if no detection is found remove noise
-            if len(self.track) < 10:
-                self.track = []
+            if len(self.track_points) < 10:
+                self.track_points = []
         return dets
 
 
@@ -476,13 +498,13 @@ if __name__ == '__main__':
             vis = self.frame.copy()
 
             utils.draw_str(vis, (20, 20),
-                           'track count: %d' % len(self.track))
+                           'track count: %d' % len(self.track_points))
 
             utils.draw_str(vis, (20, 40),
                            'target features: %d' % len(self.tkps))
 
             # Draw tracked points
-            for pts in self.track:
+            for pts in self.track_points:
                 cv2.polylines(vis, np.array([pts], dtype=np.int32),
                               False, utils.colors[min(len(pts), 9)])
             # Show frame
@@ -492,5 +514,5 @@ if __name__ == '__main__':
             return True
 
     tracker = Example(args)
-    tracker.initiliaze_points()
+    tracker.initiliaze_target()
     tracker.run()

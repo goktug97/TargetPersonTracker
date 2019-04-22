@@ -81,11 +81,12 @@ class Example(tracker.Tracker):
         frame = np.frombuffer(bframe, dtype=md['dtype'])
         self.frame = frame.reshape(md['shape'])
 
-        # Restart the connection if there is a latency
-        if (cur_time - timestamp) > 10:
-            self.socket.disconnect('tcp://localhost:5555')
-            self.socket.connect('tcp://localhost:5555')
-            print('Latency, The connection has been restarted')
+        if self.args.input == 0:
+            # Restart the connection if there is a latency
+            if (cur_time - timestamp) > 10:
+                self.socket.disconnect('tcp://localhost:5555')
+                self.socket.connect('tcp://localhost:5555')
+                print('Latency, The connection has been restarted')
 
         return True, self.frame
 
@@ -94,7 +95,7 @@ class Example(tracker.Tracker):
         vis = self.frame.copy()
 
         utils.draw_str(vis, (20, 20),
-                       'track count: %d' % len(self.track))
+                       'track count: %d' % len(self.track_points))
 
         utils.draw_str(vis, (20, 40),
                        'target features: %d' % len(self.tkps))
@@ -112,7 +113,7 @@ class Example(tracker.Tracker):
         '''
 
         # Draw tracked points
-        for pts in self.track:
+        for pts in self.track_points:
             cv2.polylines(vis, np.array([pts], dtype=np.int32),
                           False, utils.colors[min(len(pts), 9)])
 
@@ -137,7 +138,7 @@ if __name__ == '__main__':
     camera_thread = threading.Thread(target=publisher, args=(args, event,))
     camera_thread.start()
 
-    tracker.initiliaze_points()
+    tracker.initiliaze_target()
 
     tracker_thread.start()
 
