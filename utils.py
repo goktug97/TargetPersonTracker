@@ -2,7 +2,6 @@
 """Common functions for other modules."""
 
 import cv2
-from imutils.object_detection import non_max_suppression
 import numpy as np
 
 colors = np.array([[0.0, 0.0, 127.0],
@@ -31,6 +30,7 @@ def draw_str(dst, target, s):
 
 
 def nms(rects, overlapThresh=0.65):
+    from imutils.object_detection import non_max_suppression
     """Do non-max supression on detections."""
     picks = non_max_suppression(rects,
                                 probs=None,
