@@ -6,7 +6,7 @@ import rospy
 from sensor_msgs.msg import Image
 
 
-class Example(tracker.Tracker):
+class ROSExample(tracker.Tracker):
     """Example usage of Tracker class."""
 
     def __init__(self, args):
@@ -73,6 +73,8 @@ class Example(tracker.Tracker):
         # Descriptors are self.tdes
         """
 
+        # PUBLISH TRACKED POINTS
+
         # Draw tracked points
         for pts in self.track_points:
             cv2.polylines(vis, np.array([pts], dtype=np.int32),
@@ -87,6 +89,6 @@ class Example(tracker.Tracker):
 
 if __name__ == '__main__':
     from options import args
-    tracker = Example(args)
+    tracker = ROSExample(args)
     tracker.initiliaze_target()
     tracker.run()

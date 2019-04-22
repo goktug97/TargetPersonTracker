@@ -51,7 +51,7 @@ def publisher(args, event):
         # print('Sent frame {}'.format(index))
 
 
-class Example(tracker.Tracker):
+class ZMQExample(tracker.Tracker):
     """Example usage of Tracker class."""
 
     def __init__(self, args, event):
@@ -130,7 +130,7 @@ if __name__ == '__main__':
 
     event = threading.Event()
 
-    tracker = Example(args, event)
+    tracker = ZMQExample(args, event)
 
     tracker_thread = threading.Thread(target=tracker.run, args=())
 
