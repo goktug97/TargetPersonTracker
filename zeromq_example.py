@@ -92,37 +92,20 @@ class ZMQExample(tracker.Tracker):
 
     def output_function(self):
         """Overload output function."""
-        vis = self.frame.copy()
 
-        utils.draw_str(vis, (20, 20),
-                       'track count: %d' % len(self.track_points))
-
-        utils.draw_str(vis, (20, 40),
-                       'target features: %d' % len(self.tkps))
-
-        '''
         # Print length of features around tracked points
         print('Features around the tracked points: {}'.format(len(self.kps)))
         # Descriptors are self.des
-        '''
 
-        '''
         # Print length of tracked features
         print('Total number of learned features: {}'.format(len(self.tkps)))
         # Descriptors are self.tdes
-        '''
 
-        # Draw tracked points
-        for pts in self.track_points:
-            cv2.polylines(vis, np.array([pts], dtype=np.int32),
-                          False, utils.colors[min(len(pts), 9)])
-
-        # Show frame
-        cv2.imshow(self.args.window_name, vis)
-        if cv2.waitKey(1) == 27:
-            self.event.set()
-            return False
+        # Return false to close tracking
         return True
+
+    def finish(self):
+        self.event.set()
 
 
 if __name__ == '__main__':

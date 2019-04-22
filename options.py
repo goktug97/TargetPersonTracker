@@ -10,6 +10,9 @@ parser.add_argument('--window_name', type=str,
                     default='cvwindow',
                     help='OpenCV Window Name')
 
+parser.add_argument('--no_gui', dest='no_gui', action='store_true',
+                help='Don\'t Show OpenCV Window')
+
 parser.add_argument('--camera_width', type=int, default=640,
                     help='Camera Width')
 

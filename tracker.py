@@ -217,8 +217,13 @@ class Tracker(object):
         if len(self.tkps) > self.args.n_tracked:
             return False
 
-        if not self.collect_features_output_wrapper(vis) or not ret:
-            return False
+        if not self.args.no_gui:
+            cv2.imshow(self.args.window_name, vis)
+            if cv2.waitKey(1) == 27:
+                cv2.destroyAllWindows()
+                return False
+
+        self.collection_output()
 
         return True
 
@@ -230,33 +235,17 @@ class Tracker(object):
         else:
             self.tkps, self.tdes = kps, des
 
-    def collect_features_output_wrapper(self, vis):
-        """Overload this function for output of the collect_features."""
-        cv2.imshow(self.args.window_name, vis)
-        if cv2.waitKey(1) == 27:
-            cv2.destroyAllWindows()
-            return False
-        return True
+    def collection_output(self):
+        """Output wrapper for collect_features."""
+        pass
 
     def output_function(self):
         """Overload this function to interact with the tracked points."""
-        vis = self.frame.copy()
-
-        utils.draw_str(vis, (20, 20),
-                       'track count: %d' % len(self.track_points))
-
-        utils.draw_str(vis, (20, 40),
-                       'target features: %d' % len(self.tkps))
-
-        # Draw tracked points
-        for pts in self.track_points:
-            cv2.polylines(vis, np.array([pts], dtype=np.int32),
-                          False, utils.colors[min(len(pts), 9)])
-        # Show frame
-        cv2.imshow(self.args.window_name, vis)
-        if cv2.waitKey(1) == 27:
-            return False
         return True
+
+    def finish(self):
+        """Execute when the tracker is closed."""
+        pass
 
     def get_frame(self):
         """Get frame from initialized source."""
@@ -378,6 +367,25 @@ class Tracker(object):
                  len(self.track_points) < 100)):
             dets = self.retrack()
 
+        if not self.args.no_gui:
+            vis = self.frame.copy()
+
+            utils.draw_str(vis, (20, 20),
+                           'track count: %d' % len(self.track_points))
+
+            utils.draw_str(vis, (20, 40),
+                           'target features: %d' % len(self.tkps))
+
+            # Draw tracked points
+            for pts in self.track_points:
+                cv2.polylines(vis, np.array([pts], dtype=np.int32),
+                              False, utils.colors[min(len(pts), 9)])
+            # Show frame
+            cv2.imshow(self.args.window_name, vis)
+            if cv2.waitKey(1) == 27:
+                self.running = False
+                return False
+
         if not self.output_function():
             self.running = False
             return False
@@ -402,6 +410,9 @@ class Tracker(object):
         self.running = True
         while self.running:
             self.track()
+        if not self.args.no_gui:
+            cv2.destroyAllWindows()
+        self.finish()
 
     def optical_flow_tracking(self):
         """Lucas Kanade Optical Flow tracking."""
