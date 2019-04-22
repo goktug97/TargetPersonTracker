@@ -58,4 +58,5 @@ class Example(tracker.Tracker):
 if __name__ == '__main__':
     from options import args
     tracker = Example(args)
+    tracker.initiliaze_points()
     tracker.run()

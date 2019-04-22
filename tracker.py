@@ -217,10 +217,18 @@ class Tracker(object):
             if not self.collect_features_output_wrapper(vis):
                 break
 
+    def initiliaze_points(self, kps=None, des=None):
+        """Initiliaze tracking points."""
+        if kps is None or des is None:
+            self.collect_features()
+        else:
+            self.tkps, self.tdes = kps, des
+
     def collect_features_output_wrapper(self, vis):
         """Overload this function for output of the collect_features."""
         cv2.imshow(self.args.window_name, vis)
         if cv2.waitKey(1) == 27:
+            cv2.destroyAllWindows()
             return False
         return True
 
@@ -251,10 +259,6 @@ class Tracker(object):
 
     def run(self, *args):
         """Start tracking chosen target."""
-        # Populate tracking points
-        self.collect_features()
-        cv2.destroyAllWindows()
-
         # Find tracked points in current frame to start optical flow
         while True:
             ret, self.frame = self.get_frame()
@@ -488,4 +492,5 @@ if __name__ == '__main__':
             return True
 
     tracker = Example(args)
+    tracker.initiliaze_points()
     tracker.run()

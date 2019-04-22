@@ -10,6 +10,7 @@ import threading
 
 
 def publisher(args, event):
+    # Publisher socket
     context = zmq.Context()
     socket = context.socket(zmq.PUB)
     topic = 'image'
@@ -17,6 +18,7 @@ def publisher(args, event):
     socket.bind('tcp://*:5555')
 
     cap = cv2.VideoCapture(args.input)
+
     # Camera Settings
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.camera_width)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.camera_height)
@@ -28,6 +30,8 @@ def publisher(args, event):
     while not event.is_set():
         index += 1
         ret, frame = cap.read()
+        if not ret:
+            break
 
         # timestamp in ms
         timestamp = int(round(time.time() * 1000))
@@ -54,6 +58,7 @@ class Example(tracker.Tracker):
         """Initiliaze tracker and image source."""
         tracker.Tracker.__init__(self, args)
 
+        # Subscriber socket
         self.event = event
         self.event.clear()
         self.context = zmq.Context()
@@ -127,9 +132,13 @@ if __name__ == '__main__':
     tracker = Example(args, event)
 
     tracker_thread = threading.Thread(target=tracker.run, args=())
-    camera_thread = threading.Thread(target=publisher, args=(args, event,))
 
+    # Start camera
+    camera_thread = threading.Thread(target=publisher, args=(args, event,))
     camera_thread.start()
+
+    tracker.initiliaze_points()
+
     tracker_thread.start()
 
     camera_thread.join()
