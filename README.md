@@ -48,7 +48,12 @@ wrong tracking.
 * imutils
 
 ## Usage
-* Usage with MobileNet SSD Detector
+``` bash
+python tracker.py
+```
+
+### Other example usages with different arguments
+* Usage with MobileNet SSD Detector and 1000 Collected Features to start tracking
 ``` bash
 python tracker.py --detector mobilenet --mobilenet_model ./mobilenetssd/mobilenet_iter_73000.caffemodel --mobilenet_prototxt ./mobilenetssd/deploy.prototxt --n_tracked 1000 
 ```
