@@ -260,8 +260,7 @@ class Tracker(object):
 
     def get_frame(self):
         """Get frame from initialized source."""
-        ret, frame = self.source.read()
-        return (ret, frame)
+        pass
 
     def init_track_points(self):
         """Find track points in current frame to start tracking."""
@@ -492,26 +491,6 @@ if __name__ == '__main__':
             """Overload get_frame function."""
             ret, self.frame = self.cap.read()
             return ret, self.frame
-
-        def output_function(self):
-            """Overload output function."""
-            vis = self.frame.copy()
-
-            utils.draw_str(vis, (20, 20),
-                           'track count: %d' % len(self.track_points))
-
-            utils.draw_str(vis, (20, 40),
-                           'target features: %d' % len(self.tkps))
-
-            # Draw tracked points
-            for pts in self.track_points:
-                cv2.polylines(vis, np.array([pts], dtype=np.int32),
-                              False, utils.colors[min(len(pts), 9)])
-            # Show frame
-            cv2.imshow(self.args.window_name, vis)
-            if cv2.waitKey(1) == 27:
-                return False
-            return True
 
     tracker = Example(args)
     tracker.initiliaze_target()
