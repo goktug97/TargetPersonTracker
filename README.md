@@ -5,6 +5,8 @@ My initial goal with this project is a tracker with reidentification
 cabilities to track the target person. I've developed this tracker to
 put into a human tracking robot.
 
+I've made a tracker only using orb features, a detector and a tracker. HMM...
+
 ## System
 * First the tracker is initialized with target features. If the target
 features are given, the system starts tracking else it starts

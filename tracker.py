@@ -249,6 +249,7 @@ class Tracker(object):
 
     def get_frame(self):
         """Get frame from initialized source."""
+        # TODO: Add camera capture attirubute to class.
         pass
 
     def init_track_points(self):
@@ -356,8 +357,8 @@ class Tracker(object):
                 if len(idx2):
                     print('Removed {} duplicates'.format(len(idx2)))
                     for idx in sorted(idx2, reverse=True):
-                        del self.tdes[-self.new_points_len:][idx]
-                        del self.tkps[-self.new_points_len:][idx]
+                        del self.tdes[self.new_points_len + idx]
+                        del self.tkps[self.new_points_len + idx]
 
                     self.new_points_len = 0
 
