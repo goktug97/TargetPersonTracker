@@ -120,7 +120,7 @@ def reduce_area_of_detection(det, width_multiplier, height_multiplier):
 
 def find_clusters(tracks):
     """Find clusters in tracked points."""
-    tracks = list(map(lambda x: [x[0][0], x[0][1]], tracks))
+    tracks = list(map(lambda x: [x[-1][0], x[-1][1]], tracks))
     ms = MeanShift(bandwidth=30, bin_seeding=True)
     ms.fit(tracks)
     return ms.cluster_centers_
@@ -493,9 +493,6 @@ class Tracker(object):
             if (self.args.camera_fps):
                 self._cap.set(cv2.CAP_PROP_FPS, self.args.camera_fps)
         return self._cap
-
-
-
 
 
 if __name__ == '__main__':
