@@ -170,8 +170,9 @@ class Tracker(object):
         utils.draw_detections(vis, dets)
 
         # Find center detection
-        center_x = self.args.camera_width//2
-        center_y = self.args.camera_height//2
+        h, w, _ = self.frame.shape
+        center_x = w//2
+        center_y = h//2
         det = find_detection(
             dets, center_x, center_y)
         # Detection might not be centered
@@ -249,16 +250,17 @@ class Tracker(object):
 
     def get_frame(self):
         """Get frame from initialized source."""
-        # TODO: Add camera capture attirubute to class.
-        pass
+        ret, self.frame = self.cap.read()
+        return ret, self.frame
 
     def init_track_points(self):
         """Find track points in current frame to start tracking."""
         ret, self.frame = self.get_frame()
         dets = self.detector.detect(self.frame)
 
-        center_x = self.args.camera_width//2
-        center_y = self.args.camera_height//2
+        h, w, _ = self.frame.shape
+        center_x = w//2
+        center_y = h//2
         if len(dets) > 0:
             det = find_detection(
                 dets, center_x, center_y)
@@ -480,30 +482,25 @@ class Tracker(object):
             if len(self.track_points) < 10:
                 self.track_points = []
         return dets
+    
+    @property
+    def cap(self):
+        if not hasattr(self, '_cap'):
+            self._cap = cv2.VideoCapture(self.args.input)
+            # Camera Settings
+            self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.args.camera_width)
+            self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.args.camera_height)
+            if (self.args.camera_fps):
+                self._cap.set(cv2.CAP_PROP_FPS, self.args.camera_fps)
+        return self._cap
+
+
+
 
 
 if __name__ == '__main__':
     from options import args
 
-    class Example(Tracker):
-        """Example usage of Tracker class."""
-
-        def __init__(self, args):
-            """Initiliaze tracker and image source."""
-            Tracker.__init__(self, args)
-
-            self.cap = cv2.VideoCapture(self.args.input)
-            # Camera Settings
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.args.camera_width)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.args.camera_height)
-            if (self.args.camera_fps):
-                self.cap.set(cv2.CAP_PROP_FPS, self.args.camera_fps)
-
-        def get_frame(self):
-            """Overload get_frame function."""
-            ret, self.frame = self.cap.read()
-            return ret, self.frame
-
-    tracker = Example(args)
+    tracker = Tracker(args)
     tracker.initiliaze_target()
     tracker.run()
