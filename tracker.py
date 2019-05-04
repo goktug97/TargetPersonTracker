@@ -56,10 +56,12 @@ def find_detection(dets, x, y):
 
 def match_features(des1, des2):
     """Match features with given descriptors with brute force."""
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING)
-    matches = bf.knnMatch(des1, des2, k=2)
-
     idx1, idx2 = [], []
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING)
+    try:
+        matches = bf.knnMatch(des1, des2, k=2)
+    except cv2.error:
+        return idx1, idx2 
 
     for match in matches:
         if len(match) < 2:
